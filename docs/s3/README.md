@@ -35,7 +35,7 @@ From here, the commands assume the current working directory is ```micropython/p
 
 #### Add the board file from the micro-wspr folder into the micropython build folder
 ```
-ln -sf ~/micro-wspr/upy/boards/BLING boards/.
+ln -sf ~/bling-clock/upy/boards/BLING boards/.
 ```
 
 #### Build micropython port with C modules
