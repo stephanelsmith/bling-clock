@@ -1,0 +1,59 @@
+
+
+# i2c
+from machine import Pin, I2C
+import board
+i2c = I2C(0, scl = Pin(board.I2C_SCL), sda  = Pin(board.I2C_SDA), freq=board.I2C_FREQ)
+i2c.scan() # mia address is 66 or 0x42
+i2c.readfrom_mem(0x42, 0xfd, 2)
+i2c.readfrom_mem(0x42, 0xff, 2)
+
+########### NEOPIXEL #############
+from machine import Pin
+from neopixel import NeoPixel
+import board
+pwr = Pin(board.LED_PWR_EN, Pin.OUT, value=1)
+neo = NeoPixel(Pin(board.LED_DAT), board.LED_LENGTH)
+neo[0] = (0,50 ,100, 100)
+neo.write()
+
+# i2c
+from machine import Pin, I2C
+import board
+i2c = I2C(0, scl = Pin(board.I2C_SCL), sda  = Pin(board.I2C_SDA), freq=board.I2C_FREQ)
+i2c.scan() # mia address is 66 or 0x42
+
+from si import *
+
+XTAL = 25_000_000
+
+init_si(i2c)
+pa = (36,0,1)
+paf = XTAL * (pa[0] + pa[1]/pa[2])
+init_pll(i2c, b'a', *pa)
+pb = (34,560_000,1_000_000)
+pbf = XTAL * (pb[0] + pb[1]/pb[2])
+init_pll(i2c, b'b', *pb)
+print(f'plla: {paf} pllb:{pbf}')
+
+
+# CLK0: WSPR 14.0956 MHz
+m0 = (63,849_712,1_000_000)
+init_clk(i2c, 0, b'a', *m0)
+m0f = int(paf / (m0[0] + m0[1]/m0[2]))
+print(f'clk0: {m0f}')
+
+# CLK1: WSPR 14.0956 MHz
+m1 = (63,849_712,1_000_000)
+init_clk(i2c, 1, b'a', *m1)
+m1f = int(paf / (m1[0] + m1[1]/m1[2]))
+print(f'clk1: {m1f}')
+
+# APRS 144.390 MHz
+# 6 is the lowest integer divider working for me
+m0 = (6,0,1)
+init_clk(i2c, 0, b'b', *m0)
+m0f = int(paf / (m0[0] + m0[1]/m0[2]))
+print(f'clk0: {m0f}')
+
+
