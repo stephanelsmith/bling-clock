@@ -1,6 +1,4 @@
-# TinyS3
-
-[TinyS3](https://unexpectedmaker.com/shop.html#!/TinyS3/p/577100101/category=154217256) is an accessible ESP32S3 dev kit; it's tiny, versatile, easy to purchase, and I have a drawer full of them!  The [ESP32S3 chip by Espressif](https://www.espressif.com/en/products/socs/esp32-s3) is a 240MHz dual-core embedded proessor with built-in wifi, bluetooth, and usb support.  The TinyS3 adds 8Mb flash, 8Mb ram and pretty much everything else you need for a project.  
+# Bling
 
 TinyS3 is available through [UnexpectedMaker's store](https://unexpectedmaker.com/) directy, Mouser Digkey, Sparkfun and others. He's got tons of other great boards to check out to!
 
