@@ -1,6 +1,4 @@
-# TinyS3
-
-[TinyS3](https://unexpectedmaker.com/shop.html#!/TinyS3/p/577100101/category=154217256) is an accessible ESP32S3 dev kit; it's tiny, versatile, easy to purchase, and I have a drawer full of them!  The [ESP32S3 chip by Espressif](https://www.espressif.com/en/products/socs/esp32-s3) is a 240MHz dual-core embedded proessor with built-in wifi, bluetooth, and usb support.  The TinyS3 adds 8Mb flash, 8Mb ram and pretty much everything else you need for a project.  
+# Bling
 
 TinyS3 is available through [UnexpectedMaker's store](https://unexpectedmaker.com/) directy, Mouser Digkey, Sparkfun and others. He's got tons of other great boards to check out to!
 
@@ -37,12 +35,12 @@ From here, the commands assume the current working directory is ```micropython/p
 
 #### Add the board file from the micro-wspr folder into the micropython build folder
 ```
-ln -sf ~/micro-wspr/upy/boards/BLING boards/.
+ln -sf ~/bling-clock/upy/boards/BLING boards/.
 ```
 
 #### Build micropython port with C modules
 ```
-make BOARD=BLING USER_C_MODULES=~/micro-wspr/upy/c_modules/esp32.cmake
+make BOARD=BLING USER_C_MODULES=~/bling-clock/upy/c_modules/esp32.cmake
 ```
 
 
