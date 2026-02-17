@@ -40,7 +40,7 @@ ln -sf ~/micro-wspr/upy/boards/BLING boards/.
 
 #### Build micropython port with C modules
 ```
-make BOARD=BLING USER_C_MODULES=~/micro-wspr/upy/c_modules/esp32.cmake
+make BOARD=BLING USER_C_MODULES=~/bling-clock/upy/c_modules/esp32.cmake
 ```
 
 
