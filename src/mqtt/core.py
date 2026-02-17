@@ -80,7 +80,7 @@ class MQTTCore(DebugMixin):
         self.client_id = client_id
 
     async def start(self):
-        await self.adebug('start')
+        print('start')
         await self.stop_tasks()
 
         #clear connack event
@@ -99,7 +99,7 @@ class MQTTCore(DebugMixin):
 
     async def connect(self):
         self.got_connack.clear()
-        await self.adebug('connecting...')
+        print('connecting...')
         await self._connect(username   = self.username,
                             password   = self.password,
                             will_topic = self.will_topic,
@@ -108,7 +108,7 @@ class MQTTCore(DebugMixin):
             await asyncio.wait_for_ms(self.got_connack.wait(), 10000)
         except asyncio.TimeoutError as err:
             raise
-        await self.adebug('connected')
+        print('connected')
         self.is_closed.clear()
 
     async def stop_tasks(self):
@@ -124,7 +124,7 @@ class MQTTCore(DebugMixin):
 
     async def stop(self, verbose=False):
         try:
-            await self.adebug('STOP')
+            print('STOP')
             await self.stop_tasks()
 
             if not self.socket.is_closed.is_set():
@@ -201,14 +201,14 @@ class MQTTCore(DebugMixin):
                     ##################################################
                     # GET SOCKET RX DATA
                     # r = rx_q_get()
-                    # await self.adebug('rx_coro', idx, next_len, idx+next_len, r, len(r))
+                    # print('rx_coro', idx, next_len, idx+next_len, r, len(r))
                     # mv[idx:idx+next_len] = r
                     mv[idx:idx+next_len] = rx_q_get()
                     ##################################################
 
                     idx += next_len
                     itr += 1
-                # await self.adebug('rx', idx)
+                # print('rx', idx)
                 (pkt_splits, buff_from,) = split_bytes_to_pkts(mv[:idx])
                 for pkt_split in pkt_splits:
                     await process_pkt(pkt = mv[pkt_split[0]:pkt_split[1]])
@@ -244,7 +244,7 @@ class MQTTCore(DebugMixin):
                 ##################################################
 
                 if mqtt_struct.obj.qos == 1: #PUBACK for qos==1
-                    # await self.adebug('publish qos==1', 'respond with PUBACK')
+                    # print('publish qos==1', 'respond with PUBACK')
                     await self.puback(packet_id = mqtt_struct.obj.packet_id)
             elif mqtt_struct.type == mqtt_defs.CONNACK:
                 self.debug('rx','CONNACK', hex(mqtt_struct.obj.return_code),
@@ -303,7 +303,7 @@ class MQTTCore(DebugMixin):
                                     try_count = qosack.try_count + 1,
                                     )
                     if qosack.type == mqtt_defs.SUBSCRIBE:
-                        await self.adebug('qosacks', 'SUBSCRIBE FAIL')
+                        print('qosacks', 'SUBSCRIBE FAIL')
                         # await subscribe(pkt       = qosack.pkt,
                                         # packet_id = qosack.packet_id,
                                         # try_count = qosack.try_count + 1,
@@ -387,7 +387,7 @@ class MQTTCore(DebugMixin):
             pkt = mqtt_encdec.encode_subscribe(topic_qoss,
                                                packet_id = packet_id,
                                               )
-        await self.adebug('tx', 'SUBSCRIBE', topics)
+        print('tx', 'SUBSCRIBE', topics)
         if qoss > 0:
             qosack = mqtt_defs.QOSAck(
                 type      = mqtt_defs.SUBSCRIBE,
@@ -415,7 +415,7 @@ class MQTTCore(DebugMixin):
             pkt = mqtt_encdec.encode_unsubscribe(topics,
                                                          packet_id = packet_id,
                                                          )
-        # await self.adebug('tx', 'UNSUBSCRIBE', topics)
+        # print('tx', 'UNSUBSCRIBE', topics)
         # always get unsuback
         qosack = mqtt_defs.QOSAck(
             type      = mqtt_defs.UNSUBSCRIBE,
@@ -431,7 +431,7 @@ class MQTTCore(DebugMixin):
 
     async def puback(self, packet_id):
         pkt = mqtt_encdec.encode_puback(packet_id = packet_id)
-        # await self.adebug('tx', 'PUBACK', pkt)
+        # print('tx', 'PUBACK', pkt)
         await self.tx_q.put(pkt, is_priority=True) #self.socket.tx_q
 
     async def ping(self):
@@ -444,7 +444,7 @@ class MQTTCore(DebugMixin):
         if self.tx_q.empty():
             #only add items if we are empty so we don't pile in
             pkt = mqtt_encdec.encode_pingreq()
-            await self.adebug('pingreq')
+            print('pingreq')
             self.ping_ticks_start = time.ticks_ms()
             await self.tx_q.put(pkt, is_priority=True) #self.socket.tx_q
 
@@ -453,7 +453,7 @@ class MQTTCore(DebugMixin):
                              will_topic = None,
                              will_msg   = None,
                              ):
-        await self.adebug('CONNECT', 'client_id', self.client_id)
+        print('CONNECT', 'client_id', self.client_id)
         pkt = mqtt_encdec.encode_connect(client_id     = self.client_id,
                                          keep_alive    = mqtt_defs.KEEP_ALIVE_S,
                                          clean_session = True,
@@ -462,11 +462,11 @@ class MQTTCore(DebugMixin):
                                          will_topic    = will_topic,
                                          will_msg      = will_msg,
                                          )
-        # await self.adebug('CONNECT')
+        # print('CONNECT')
         # self.pinger.trigger()
         await self.tx_q.put(pkt, is_priority=True) #self.socket.tx_q
 
     async def disconnect(self):
         pkt = mqtt_encdec.encode_disconnect()
-        # await self.adebug('tx', 'DISCONNET', pkt)
+        # print('tx', 'DISCONNET', pkt)
         await self.tx_q.put(pkt, is_priority=True) #self.socket.tx_q

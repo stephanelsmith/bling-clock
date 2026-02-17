@@ -25,7 +25,6 @@ from mqtt.core import MQTTCore
 from mqtt.defs import LOBBY_PASSWORD
 
 from board import ADDR
-from ota.ota import OTA
 
 _NEOPIXELS_PWR = const(6)
 _NEOPIXELS_DAT = const(18)
@@ -116,11 +115,6 @@ def draw_bytes(neo, bs:bytes, hue=LED_HUE_LIGHTBLUE):
         neo[xy_to_i(x, y)] = hsv_to_rgb(hue, 255, v)
 
 
-async def do_ota_upgrade():
-    ota = OTA(addr = ADDR)
-    await ota.start()
-    await ota.ota_network_upgrade()
-
 async def mqtt_rx_coro(neo, rx_q):
     try:
         while True:
@@ -132,12 +126,6 @@ async def mqtt_rx_coro(neo, rx_q):
                         mrr_val = r.payload
                         write_text(neo, text = mrr_val, hue = LED_HUE_TEAL)
                         neo.write()
-                    if r.topic == b'bling/v':
-                        v = int(r.payload)
-                        if v > board.VERSION:
-                            print('DO UPGRADE {} => {}'.format(board.VERSION, v))
-                            # asyncio.create_task(do_ota_upgrade())
-                            await do_ota_upgrade()
 
             except Exception as err:
                 sys.print_exception(err)
@@ -203,12 +191,6 @@ async def start():
                 rx_task.cancel()
             gc.collect()
             gc_task.cancel()
-
-# OTA Mark partition valid, cancel rollback
-def ota_part_is_good():
-    part = esp32.Partition(esp32.Partition.RUNNING)
-    part.mark_app_valid_cancel_rollback()
-ota_part_is_good()
 
 def main():
     try:
