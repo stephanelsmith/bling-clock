@@ -47,7 +47,7 @@ make BOARD=BLING USER_C_MODULES=~/bling-clock/upy/c_modules/esp32.cmake
 #### Flash the esp32 chip.
 Before flashing the ESP32S3 needs to be in the bootloader.  This is done by holding the ```boot``` button and clicking ```reset```.  You can find the right comm port with ```py -m serial.tools.list_ports```.  You may need to ```py -m pip install pyserial``` first.
 ```
-py -m esptool --chip esp32s3 --port COM4 write-flash -z 0 .\micropython\ports\esp32\build-BLING\firmware.bin
+py -m esptool --chip esp32s3 --port COM6 write-flash -z 0 .\micropython\ports\esp32\build-BLING\firmware.bin
 ```
 
 
