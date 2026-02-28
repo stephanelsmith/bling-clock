@@ -11,7 +11,7 @@ from lib.priorityqueue import PriorityQueue
 from . import defs as mqtt_defs
 from . import encdec as mqtt_encdec
 
-from debug import DebugMixin
+from lib.debug import DebugMixin
 from lib import byteify_pkt
 from lib import cancel_gather_wait_for_ms
 

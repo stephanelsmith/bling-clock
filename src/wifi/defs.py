@@ -1,5 +1,4 @@
 
-import board
 import collections
 
 #if we are consistently not connecting, reboot
@@ -15,21 +14,8 @@ AddrInfo = collections.namedtuple('AddrInfo',
 )
 
 # AP names are pre-fixes, essentially SSID.*
-if board.BRD == b'BLING':
-    APs = [
-        ('ATTsTtW222','p2kydzyekv9h'),
-        ('ThunderFace2','sararocksmyworld'),
-        ('1314','1314Puma!'),
-    ]
-    WIFI_TX_POWER = 18
-else:
-    APs = [
-        ('ATTsTtW222','p2kydzyekv9h'),
-    ]
-
-    if board.REVISION in [0,1]:
-        # s3 compatibilty
-        WIFI_TX_POWER     = 6 #dBm
-    else:
-        WIFI_TX_POWER     = 20 #dBm
+APs = [
+    ('ThunderFace','sararocksmyworld'),
+]
+WIFI_TX_POWER = 18
 

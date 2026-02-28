@@ -18,6 +18,7 @@ import binascii
 
 import wifi.defs as wifi_defs
 
+from lib.debug import DebugMixin
 from lib.priorityqueue import PriorityQueue
 from lib import cancel_gather_wait_for_ms
 
@@ -29,7 +30,7 @@ _SOCKET_POLL_DELAY = const(10) #slow poll delay so we don't slam
 #more than once
 AddrInfos =[]
 
-class WifiSocket():
+class WifiSocket(DebugMixin):
     def __init__(self, ifce     = None,
                        host     = None, 
                        port     = None,
@@ -73,7 +74,7 @@ class WifiSocket():
         self.tx_count = 0    #tx bytes/sec
 
     async def start(self):
-        print('start')
+        await self.adebug('start')
         await self.stop_tasks()
 
         try:
@@ -99,7 +100,7 @@ class WifiSocket():
 
     async def stop(self, verbose=False):
         try:
-            print('stop')
+            await self.adebug('stop')
             self.is_closed.set()
             if self.sock:
                 # self.debug('closing socket (stop)', id(self.sock))
@@ -129,7 +130,7 @@ class WifiSocket():
         #get socket info
         tries = 3
         while True:
-            print('start_socket: {}:{}'.format(self.host, self.port))
+            await self.adebug('start_socket: {}:{}'.format(self.host, self.port))
             try:
                 addrinfo = self.get_socket_info(host = self.host,
                                                 port = self.port,)
@@ -147,7 +148,7 @@ class WifiSocket():
         self.sock.setblocking(False)
 
         try:
-            print('connect: {}'.format(addrinfo))
+            await self.adebug('connect: {}'.format(addrinfo))
             self.sock.connect(addrinfo)
         except OSError as e:
             # esp32 https://github.com/micropython/micropython-esp32/issues/166
@@ -160,15 +161,15 @@ class WifiSocket():
             await asyncio.sleep_ms(_SOCKET_POLL_DELAY)
 
         if self.en_ssl:
-            print('start ssl 1')
+            await self.adebug('start ssl 1')
             ctx = tls.SSLContext(tls.PROTOCOL_TLS_CLIENT)
             ctx.verify_mode = tls.CERT_OPTIONAL
-            print('start ssl 2')
+            await self.adebug('start ssl 2')
             gc.collect()
             self.sock = ctx.wrap_socket(self.sock)
-            print('start ssl 3')
+            await self.adebug('start ssl 3')
 
-        # print('connected {}:{}'.format(self.host, self.port))
+        # await self.adebug('connected {}:{}'.format(self.host, self.port))
 
         self.is_closed.clear()
 
@@ -286,7 +287,7 @@ class WifiSocket():
                     # write returns None if not successful instead of raising EAGAIN like send
                     r = sock_write(mv[n:idx])
                     if not r: #None or 0
-                        print('tx_coro', r)
+                        await self.adebug('tx_coro', r)
                         # await sleep_ms(100)
                         await sleep_ms(0)
                         errcnt += 1
@@ -354,14 +355,16 @@ class WifiSocket():
     async def debug_coro(self):
         #local access optimization
         sleep = asyncio.sleep
+        adebug = self.adebug
 
         try:
             while True:
                 await sleep(10)
                 #throughput report
                 ticks = time.ticks_diff(time.ticks_ms(), self.ticks_start)
-                await print( 'RX B/s',round(self.rx_count/(ticks/1000),1),
+                await adebug( 'RX B/s',round(self.rx_count/(ticks/1000),1),
                               'TX B/s',round(self.tx_count/(ticks/1000),1),)
+                # await adebug('---------')
                 self.ticks_start = time.ticks_ms()
                 self.rx_count = 0
                 self.tx_count = 0
@@ -371,7 +374,7 @@ class WifiSocket():
             sys.print_exception(err)
 
 
-class Wifi():
+class Wifi(DebugMixin):
     def __init__(self, addr     = None,
                        rtr_in_q = None,
                        # rtc      = None,
@@ -403,7 +406,7 @@ class Wifi():
             if fn := getattr(self, evt) if hasattr(self, evt) else None:
                 launch(fn, params) # launch with sync or async
                 return
-            print('SKIP MSG topic:{} event:{} params:{}'.format(topic, evt, params))
+            await self.adebug('SKIP MSG topic:{} event:{} params:{}'.format(topic, evt, params))
         except asyncio.CancelledError:
             raise
         except Exception as err:
@@ -414,7 +417,7 @@ class Wifi():
         return binascii.hexlify(self.mac).decode()
 
     async def start(self):
-        print('start')
+        await self.adebug('start')
         await self.stop_tasks()
         # self.sta.active(True)
 
@@ -440,7 +443,7 @@ class Wifi():
 
     async def stop(self, verbose=False):
         try:
-            print('stop')
+            await self.adebug('stop')
             self.is_closed.set()
             await self.stop_tasks()
             # await super().stop_tasks()
@@ -469,7 +472,7 @@ class Wifi():
         await self.stop()
 
     async def connect(self):
-        # print('conn_coro', 'start')
+        # await self.adebug('conn_coro', 'start')
         tx_power = wifi_defs.WIFI_TX_POWER
         try:
             if len(wifi_defs.APs) == 0:
@@ -478,14 +481,14 @@ class Wifi():
             await self.connect_knownap(verbose=True)
             # if self.sta.status() != network.STAT_GOT_IP:
             if not self.sta.isconnected():
-                print('ip failed', 'self.sta.status', self.sta.status(), network.STAT_GOT_IP, 'tx power', tx_power)
+                await self.adebug('ip failed', 'self.sta.status', self.sta.status(), network.STAT_GOT_IP, 'tx power', tx_power)
                 raise Exception('failed to connect')
                 # tx_power -= 1
                 # continue
 
             #connected!
             # tx_power = wifi_defs.WIFI_TX_POWER
-            print('ip', self.ip())
+            await self.adebug('ip', self.ip())
             self.is_closed.clear()
         except asyncio.CancelledError:
             raise
@@ -498,10 +501,10 @@ class Wifi():
                 for ssid,passw in wifi_defs.APs:
                     self.sta.active(False)
                     self.sta.active(True)
-                    print('trying to connect to {}'.format(ssid))
+                    await self.adebug('trying to connect to {}'.format(ssid))
                     # self.sta.connect('ThunderFace2', 'sararocksmyworld')
                     self.sta.connect(ssid,passw)
-                    print('txpower:{}'.format(wifi_defs.WIFI_TX_POWER))
+                    await self.adebug('txpower:{}'.format(wifi_defs.WIFI_TX_POWER))
                     self.sta.config(txpower = wifi_defs.WIFI_TX_POWER)
                     self.sta.config(pm = self.sta.PM_POWERSAVE)
                     # self.sta.config(pm = self.sta.PM_PERFORMANCE)
@@ -512,11 +515,11 @@ class Wifi():
                     while time.ticks_diff(time.ticks_ms(), start) < 10000 and\
                             not self.sta.isconnected() and\
                             self.sta.status() not in [network.STAT_NO_AP_FOUND, network.STAT_WRONG_PASSWORD]:
-                        print(self.sta.isconnected(), self.sta.status())
+                        await self.adebug(self.sta.isconnected(), self.sta.status())
                         await asyncio.sleep_ms(1000)
                     await asyncio.sleep_ms(1000)
                     if self.sta.isconnected():
-                        print('CONNECTED to {}'.format(ssid))
+                        await self.adebug('CONNECTED to {}'.format(ssid))
                         return 
                     self.sta.disconnect()
                     await asyncio.sleep_ms(1000)
@@ -531,26 +534,26 @@ class Wifi():
             # # super annoying block wifi scan
             # # would be cool if non-blocking scan introduced....
             # # https://github.com/micropython/micropython/pull/7526
-            # print('wifi scan...')
+            # await self.adebug('wifi scan...')
             # scan_results = self.sta.scan()
             # #scan result tuple (ssid, bssid, channel, RSSI, security, hidden)
             # scan_results = _.sort_by(scan_results, lambda r: r[3])
             # self.sta.disconnect() 
             # for scan_ap in scan_results[::-1]:
-                # print('wifi scan',scan_ap)
+                # await self.adebug('wifi scan',scan_ap)
                 # for ap in wifi_defs.APs:
                     # my_ssid = ap[0]
                     # scan_ssid = scan_ap[0]
                     # mv = memoryview(scan_ssid)
                     # if my_ssid == mv[:len(my_ssid)]:
                         # if verbose:
-                            # print('trying', scan_ssid, ap[1])
+                            # await self.adebug('trying', scan_ssid, ap[1])
                         # self.sta.connect(scan_ssid, ap[1])
                         # start = time.ticks_ms()
                         # while time.ticks_diff(time.ticks_ms(), start) < 10000 and not self.sta.isconnected():
                             # await asyncio.sleep_ms(250)
                         # if self.sta.isconnected():
-                            # print('connected to', scan_ssid, ap[1])
+                            # await self.adebug('connected to', scan_ssid, ap[1])
                             # return 
             # # await asyncio.sleep(5)
         # except asyncio.CancelledError:

@@ -42,23 +42,13 @@ async def start():
         async with Wifi(addr = b'{}'.format(ADDR),
                         ) as wifi:
             use_ssl = True
-            # async with WifiSocket(ifce   = wifi,
-                                  # host   = 'broker.hivemq.com',
-                                  # en_ssl = use_ssl,
-                                  # port   = 8883 if use_ssl else 1883,
-                                  # ) as sock:
-                # async with MQTTCore(socket    = sock,
-                                    # client_id = wifi.client_id,
-                                    # ) as mqtt:
             async with WifiSocket(ifce   = wifi,
-                                  host   = b'lby.titanstats.io',
+                                  host   = 'broker.hivemq.com',
                                   en_ssl = use_ssl,
                                   port   = 8883 if use_ssl else 1883,
                                   ) as sock:
                 async with MQTTCore(socket    = sock,
                                     client_id = wifi.client_id,
-                                    username   = b'{}'.format(ADDR),
-                                    password   = LOBBY_PASSWORD,
                                     ) as mqtt:
                     rx_task = asyncio.create_task(mqtt_rx_coro(rx_q = mqtt.mqtt_app_rx_q))
                     await mqtt.subscribe(topics = [b'd/{}'.format(ADDR)])
