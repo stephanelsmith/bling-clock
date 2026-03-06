@@ -119,14 +119,11 @@ async def start():
             gc_task = asyncio.create_task(gc_coro())
             rx_task = None
             
-            print(1)
             neo = NeoPixel(Pin(_NEOPIXELS_DAT), _NEOPIXELS_LEN)
-            print(2)
 
             write_text(neo  = neo,
                        text = b'lion')
             neo.write()
-            print(3)
 
             await Event().wait()
 

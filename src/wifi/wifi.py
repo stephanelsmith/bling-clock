@@ -58,8 +58,6 @@ class WifiSocket(DebugMixin):
 
         #track if a socket is open or closed, used for retry methods
         #don't set these directly, use set_socket_status(is_ready=
-        # self.socket_down = Event()
-        # self.socket_up   = Event()
         self.is_closed = Event()
         self.is_closed.set()
 
@@ -204,23 +202,6 @@ class WifiSocket(DebugMixin):
                     self.rx_count += n
                     n = 0
 
-            # await socket_up_wait()
-            # sock_read = self.sock.read 
-            # while True:
-                # if not socket_up_is_set():
-                    # break
-                # await sleep_ms(_SOCKET_POLL_DELAY)
-                # buff = None
-                # try:
-                    # # when reading, we always are reading in the bytes buffer
-                    # # since we need to pass the copy to put
-                    # # we don't need to read_into since we'd create a copy anyway
-                    # buff = sock_read(max_len)
-                    # if buff:
-                        # await rx_q_put(buff)
-                # except asyncio.CancelledError:
-                    # raise
-
         except asyncio.CancelledError:
             raise
         except Exception as err:
@@ -240,10 +221,6 @@ class WifiSocket(DebugMixin):
             tx_q_empty = tx_q.empty
             tx_q_peek_len = tx_q.peek_len
             tx_q_get = tx_q.get_nowait
-            # socket_up = self.socket_up
-            # socket_up_is_set = socket_up.is_set
-            # socket_down = self.socket_down
-            # socket_down_is_set = socket_down.is_set
             is_closed = self.is_closed.is_set
             sleep_ms = asyncio.sleep_ms
 
@@ -328,7 +305,6 @@ class WifiSocket(DebugMixin):
             # if idx:
                 # self.tx_q._queue.insert(0,bytes(mv[:idx])) #add unsent items back into queue
 
-
     def get_socket_info(self, host, port):
         # Note this blocks if DNS lookup occurs. Do it once to prevent
         # blocking during later internet outage:
@@ -342,15 +318,6 @@ class WifiSocket(DebugMixin):
             )
             AddrInfos.append(addrinfo)
         return addrinfo.addrinfo
-
-
-    # def set_socket_status(self, is_ready):
-        # if is_ready:
-            # self.socket_down.clear()
-            # self.socket_up.set()
-        # else:
-            # self.socket_down.set()
-            # self.socket_up.clear()
 
     async def debug_coro(self):
         #local access optimization
@@ -504,11 +471,11 @@ class Wifi(DebugMixin):
                     await self.adebug('trying to connect to {}'.format(ssid))
                     # self.sta.connect('ThunderFace2', 'sararocksmyworld')
                     self.sta.connect(ssid,passw)
-                    await self.adebug('txpower:{}'.format(wifi_defs.WIFI_TX_POWER))
-                    self.sta.config(txpower = wifi_defs.WIFI_TX_POWER)
-                    self.sta.config(pm = self.sta.PM_POWERSAVE)
+                    # await self.adebug('txpower:{}'.format(wifi_defs.WIFI_TX_POWER))
+                    # self.sta.config(txpower = wifi_defs.WIFI_TX_POWER)
+                    # self.sta.config(pm = self.sta.PM_POWERSAVE)
                     # self.sta.config(pm = self.sta.PM_PERFORMANCE)
-                    await asyncio.sleep_ms(1000)
+                    # await asyncio.sleep_ms(1000)
                     start = time.ticks_ms()
                     # while time.ticks_diff(time.ticks_ms(), start) < 10000 and\
                             # not self.sta.isconnected():
@@ -517,7 +484,7 @@ class Wifi(DebugMixin):
                             self.sta.status() not in [network.STAT_NO_AP_FOUND, network.STAT_WRONG_PASSWORD]:
                         await self.adebug(self.sta.isconnected(), self.sta.status())
                         await asyncio.sleep_ms(1000)
-                    await asyncio.sleep_ms(1000)
+                    # await asyncio.sleep_ms(1000)
                     if self.sta.isconnected():
                         await self.adebug('CONNECTED to {}'.format(ssid))
                         return 
@@ -528,38 +495,6 @@ class Wifi(DebugMixin):
             raise
         except Exception as err:
             raise
-
-    # async def connect_knownap(self, verbose=False):
-        # try:
-            # # super annoying block wifi scan
-            # # would be cool if non-blocking scan introduced....
-            # # https://github.com/micropython/micropython/pull/7526
-            # await self.adebug('wifi scan...')
-            # scan_results = self.sta.scan()
-            # #scan result tuple (ssid, bssid, channel, RSSI, security, hidden)
-            # scan_results = _.sort_by(scan_results, lambda r: r[3])
-            # self.sta.disconnect() 
-            # for scan_ap in scan_results[::-1]:
-                # await self.adebug('wifi scan',scan_ap)
-                # for ap in wifi_defs.APs:
-                    # my_ssid = ap[0]
-                    # scan_ssid = scan_ap[0]
-                    # mv = memoryview(scan_ssid)
-                    # if my_ssid == mv[:len(my_ssid)]:
-                        # if verbose:
-                            # await self.adebug('trying', scan_ssid, ap[1])
-                        # self.sta.connect(scan_ssid, ap[1])
-                        # start = time.ticks_ms()
-                        # while time.ticks_diff(time.ticks_ms(), start) < 10000 and not self.sta.isconnected():
-                            # await asyncio.sleep_ms(250)
-                        # if self.sta.isconnected():
-                            # await self.adebug('connected to', scan_ssid, ap[1])
-                            # return 
-            # # await asyncio.sleep(5)
-        # except asyncio.CancelledError:
-            # raise
-        # except Exception as err:
-            # raise
 
     def ip(self):
         try:

@@ -1,10 +1,6 @@
 
 import collections
 
-#if we are consistently not connecting, reboot
-REBOOT_ON_FAILS    = const(1)
-REBOOT_AFTER_FAILS = const(5)
-
 AddrInfo = collections.namedtuple('AddrInfo',
     [
         'host',
@@ -15,7 +11,7 @@ AddrInfo = collections.namedtuple('AddrInfo',
 
 # AP names are pre-fixes, essentially SSID.*
 APs = [
-    ('ThunderFace','sararocksmyworld'),
+    ('Thunderface','sararocksmyworld'),
 ]
-WIFI_TX_POWER = 18
+WIFI_TX_POWER = 10
 

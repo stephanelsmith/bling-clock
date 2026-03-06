@@ -5,6 +5,7 @@ import gc
 from micropython import const
 from random import randint
 import esp32
+from machine import RTC
 
 from asyncio import Event
 from primitives.events import WaitAny
@@ -22,7 +23,8 @@ from wifi.wifi import Wifi
 from wifi.wifi import WifiSocket
 
 from mqtt.core import MQTTCore
-from mqtt.defs import LOBBY_PASSWORD
+
+from lib.ntptime import settime as ntp_settime
 
 from board import ADDR
 
@@ -44,11 +46,6 @@ LED_HUE_BLUE      = const(165)
 LED_HUE_DARKBLUE  = const(170)
 LED_HUE_PUPLE     = const(175)
 LED_HUE_PINK      = const(220)
-
-# py -m esptool --chip esp32s3 --port COM17 write_flash -z 0 .\micropython_latest\ports\esp32\build-IB_BLINGMRR\firmware.bin
-# from machine import bootloader
-# bootloader()
-# python -m esptool --chip esp32s3 --port COM16 write_flash -z 0 .\ib_blingmrr.fw.bin
 
 async def gc_coro():
     try:
@@ -116,30 +113,36 @@ def draw_bytes(neo, bs:bytes, hue=LED_HUE_LIGHTBLUE):
 
 
 async def mqtt_rx_coro(neo, rx_q):
+    while True:
+        try:
+            r = await rx_q.get()
+            if r:
+                print('RX',r)
+                if r.topic == b'bling/mrr':
+                    mrr_val = r.payload
+                    write_text(neo, text = mrr_val, hue = LED_HUE_TEAL)
+                    neo.write()
+        except asyncio.CancelledError:
+            raise
+        except Exception as err:
+            sys.print_exception(err)
+
+async def ntp_coro():
     try:
+        print('NTP | fetching time')
+        ntp_settime()
         while True:
             try:
-                r = await rx_q.get()
-                if r:
-                    print('RX',r)
-                    if r.topic == b'bling/mrr':
-                        mrr_val = r.payload
-                        write_text(neo, text = mrr_val, hue = LED_HUE_TEAL)
-                        neo.write()
-
+                print('NTP','|',RTC().datetime() )
+                await asyncio.sleep_ms(5000)
+            except asyncio.CancelledError:
+                raise
             except Exception as err:
                 sys.print_exception(err)
     except asyncio.CancelledError:
         raise
-
-async def splash_wait(neo):
-    while True:
-        draw_bytes(neo, bs=titan_logo, hue = LED_HUE_TEAL)
-        neo.write()
-        await asyncio.sleep_ms(2000)
-        draw_bytes(neo, bs=mrr_logo, hue = LED_HUE_TEAL)
-        neo.write()
-        await asyncio.sleep_ms(2000)
+    except Exception as err:
+        sys.print_exception(err)
 
 async def start():
     
@@ -150,7 +153,9 @@ async def start():
             rx_task = None
 
             neo = NeoPixel(Pin(_NEOPIXELS_DAT), _NEOPIXELS_LEN)
-            splash_task = asyncio.create_task(splash_wait(neo))
+            write_text(neo  = neo,
+                       text = b'hello')
+            neo.write()
 
             async with Wifi(addr = b'{}'.format(ADDR),
                             ) as wifi:
@@ -160,16 +165,16 @@ async def start():
                                       en_ssl = use_ssl,
                                       port   = 8883,
                                       ) as wifisocket:
-                                      # port   = 9883 if use_ssl else 1883, # dev
                     async with MQTTCore(socket    = wifisocket,
                                         client_id = wifi.client_id,
                                         ) as mqtt:
                         await mqtt.subscribe(topics = [b'bling/#'])
 
-                        splash_task.cancel()
-
                         rx_task = asyncio.create_task(mqtt_rx_coro(neo = neo, 
-                                                                rx_q = mqtt.mqtt_app_rx_q))
+                                                                   rx_q = mqtt.mqtt_app_rx_q))
+                        ntp_task = asyncio.create_task(ntp_coro())
+
+                        
                         await WaitAny((
                             wifi.is_closed,
                             wifisocket.is_closed,

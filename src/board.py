@@ -5,8 +5,6 @@ from machine import Pin
 from machine import ADC
 import network
 import struct
-import collections
-import esp32
 import binascii
 from micropython import const
 
@@ -33,6 +31,3 @@ def get_board_name_and_mcu_name():
 #get machine
 (board_name, mcu_name) = get_board_name_and_mcu_name()
 
-
-def is_vbus():
-    return True
