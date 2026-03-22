@@ -25,8 +25,13 @@ from wifi.wifi import WifiSocket
 from mqtt.core import MQTTCore
 
 from lib.ntptime import settime as ntp_settime
+from lib.mytime import lcl_timetuple
 
 from board import ADDR
+
+CALLEN_MODE = 0
+CELESTE_MODE = 1
+CLOCK_MODE = CELESTE_MODE
 
 _NEOPIXELS_PWR = const(6)
 _NEOPIXELS_DAT = const(18)
@@ -81,7 +86,7 @@ def hsv_to_rgb(h:int, s:int, v:int):
     if reg == 5:
         return (v, p, q)
 
-# x,y top left
+# 0,0 top left
 @micropython.viper
 def xy_to_i(x:int, y:int) -> int:
     return x+y*_NEOPIXELS_ROW
@@ -89,52 +94,97 @@ def xy_to_i(x:int, y:int) -> int:
 def i_to_xy(i:int):
     return (i % _NEOPIXELS_ROW, i // _NEOPIXELS_ROW)
 
-def write_text(neo, text:bytes, jright=True, hue=LED_HUE_LIGHTBLUE):
+def write_text(frmmsk, text:bytes, jright=True, hue=LED_HUE_LIGHTBLUE, val=5):
     j = max(_NEOPIXELS_MAX_CHARS-len(text),0)
     if jright:
         text = b' '*j+text
     else:
         text = text + b' '*j
+    for i in range(_NEOPIXELS_LEN):
+        frmmsk[i] = 0
     for i,c in enumerate(text[:_NEOPIXELS_MAX_CHARS]):
         ps = char_to_pixels(c) # get character
         for x,p in enumerate(ps): # for each column
             for y in range(8): # for each row
-                v = 5 if p&(0x01<<y) else 0
-                neo[xy_to_i(i*8+x, y)] = hsv_to_rgb(hue, 255, v)
+                v = val if p&(0x01<<y) else 0
+                # neo[xy_to_i(i*8+x, y)] = hsv_to_rgb(hue, 255, v)
+                frmmsk[xy_to_i(i*8+x, y)] = 1 if p&(0x01<<y) else 0
 
 
-def draw_bytes(neo, bs:bytes, hue=LED_HUE_LIGHTBLUE):
-    for i in range(8*40):
-        b = bs[i//8]
-        v = 5 if b&(0x80>>(i%8)) else 0
-        x = i%40
-        y = i//40
-        neo[xy_to_i(x, y)] = hsv_to_rgb(hue, 255, v)
+# def draw_bytes(neo, bs:bytes, hue=LED_HUE_LIGHTBLUE):
+    # for i in range(8*40):
+        # b = bs[i//8]
+        # v = 5 if b&(0x80>>(i%8)) else 0
+        # x = i%40
+        # y = i//40
+        # neo[xy_to_i(x, y)] = hsv_to_rgb(hue, 255, v)
 
 
-async def mqtt_rx_coro(neo, rx_q):
-    while True:
-        try:
-            r = await rx_q.get()
-            if r:
-                print('RX',r)
-                if r.topic == b'bling/mrr':
-                    mrr_val = r.payload
-                    write_text(neo, text = mrr_val, hue = LED_HUE_TEAL)
-                    neo.write()
-        except asyncio.CancelledError:
-            raise
-        except Exception as err:
-            sys.print_exception(err)
+# async def mqtt_rx_coro(neo, rx_q):
+    # while True:
+        # try:
+            # r = await rx_q.get()
+            # if r:
+                # print('RX',r)
+                # if r.topic == b'bling/mrr':
+                    # mrr_val = r.payload
+                    # write_text(neo, text = mrr_val, hue = LED_HUE_TEAL)
+                    # neo.write()
+        # except asyncio.CancelledError:
+            # raise
+        # except Exception as err:
+            # sys.print_exception(err)
 
+# update the systemt time
 async def ntp_coro():
     try:
-        print('NTP | fetching time')
-        ntp_settime()
+        while True:
+            print('NTP | fetching time')
+            ntp_settime()
+            for x in range(3600_000//5000):
+                try:
+                    # print('NTP','|',RTC().datetime() )
+                    await asyncio.sleep_ms(5000)
+                    yr, mth, day, hr, min, sec, msec, = lcl_timetuple()
+                    if yr < 2026:
+                        break
+                except asyncio.CancelledError:
+                    raise
+                except Exception as err:
+                    sys.print_exception(err)
+    except asyncio.CancelledError:
+        raise
+    except Exception as err:
+        sys.print_exception(err)
+
+# draw the clock into the framebuf as a mask
+async def clock_coro(frmmsk):
+    try:
         while True:
             try:
-                print('NTP','|',RTC().datetime() )
-                await asyncio.sleep_ms(5000)
+                await asyncio.sleep_ms(250)
+                yr, mth, day, hr, min, sec, msec, = lcl_timetuple()
+                if yr < 2026:
+                    if sec%2==0:
+                        write_text(frmmsk = frmmsk,
+                                   text = b'hello')
+                    else:
+                        if CLOCK_MODE == CALLEN_MODE:
+                            write_text(frmmsk  = frmmsk,
+                                    text = b'Calln')
+                        elif CLOCK_MODE == CELESTE_MODE:
+                            write_text(frmmsk  = frmmsk,
+                                    text = b'Celst')
+                    await asyncio.sleep_ms(1000)
+                    continue
+                print('CLK','|',lcl_timetuple())
+                sep = ':' if sec%2==0 else ' '
+                time = '{:02}{}{:02}'.format(hr,sep,min)
+                hue = (min*60+sec)*360//(60*60)
+                val = 1 if (hr < 8 or hr > 19) else 5
+                write_text(frmmsk  = frmmsk,
+                           text    = time.encode(),
+                           )
             except asyncio.CancelledError:
                 raise
             except Exception as err:
@@ -144,42 +194,76 @@ async def ntp_coro():
     except Exception as err:
         sys.print_exception(err)
 
+# colorize and write to neopixel
+async def display_coro(frmmsk, neo):
+    shift = 0
+    speed = 5 
+    try:
+        while True:
+            try:
+                await asyncio.sleep_ms(1)
+                shift += speed
+                for i in range(_NEOPIXELS_LEN):
+                    x,y = i_to_xy(i)
+                    hue = (x-shift//10)*256//_NEOPIXELS_ROW
+                    v = 5 if frmmsk[i] else 0
+                    neo[i] = hsv_to_rgb(hue, 255, v)
+                neo.write()
+            except asyncio.CancelledError:
+                raise
+            except Exception as err:
+                sys.print_exception(err)
+    except asyncio.CancelledError:
+        raise
+    except Exception as err:
+        sys.print_exception(err)
+
+
 async def start():
     
+    led_pwr = Pin(_NEOPIXELS_PWR, Pin.OUT, value=1)
+    gc_task = asyncio.create_task(gc_coro())
+    neo = NeoPixel(Pin(_NEOPIXELS_DAT), _NEOPIXELS_LEN)
+    framemask = bytearray(_NEOPIXELS_LEN)
+
+    # for x in range(_NEOPIXELS_LEN):
+        # neo[x] = hsv_to_rgb(LED_HUE_RED, 255, 5)
+    # neo[0] = hsv_to_rgb(LED_HUE_BLUE, 255, 5)
+    # neo[1] = hsv_to_rgb(LED_HUE_GREEN, 255, 5)
+    # neo.write()
+
+    clock_task = asyncio.create_task(clock_coro(frmmsk = framemask))
+    display_task = asyncio.create_task(display_coro(frmmsk = framemask,
+                                                    neo = neo))
+
     while True:
         try:
-            led_pwr = Pin(_NEOPIXELS_PWR, Pin.OUT, value=1)
-            gc_task = asyncio.create_task(gc_coro())
             rx_task = None
-
-            neo = NeoPixel(Pin(_NEOPIXELS_DAT), _NEOPIXELS_LEN)
-            write_text(neo  = neo,
-                       text = b'hello')
-            neo.write()
 
             async with Wifi(addr = b'{}'.format(ADDR),
                             ) as wifi:
-                use_ssl = True
-                async with WifiSocket(ifce   = wifi,
-                                      host   = 'broker.hivemq.com',
-                                      en_ssl = use_ssl,
-                                      port   = 8883,
-                                      ) as wifisocket:
-                    async with MQTTCore(socket    = wifisocket,
-                                        client_id = wifi.client_id,
-                                        ) as mqtt:
-                        await mqtt.subscribe(topics = [b'bling/#'])
+                ntp_task = asyncio.create_task(ntp_coro())
+                await Event().wait()
+                # use_ssl = True
+                # async with WifiSocket(ifce   = wifi,
+                                      # host   = 'broker.hivemq.com',
+                                      # en_ssl = use_ssl,
+                                      # port   = 8883,
+                                      # ) as wifisocket:
+                    # async with MQTTCore(socket    = wifisocket,
+                                        # client_id = wifi.client_id,
+                                        # ) as mqtt:
+                        # await mqtt.subscribe(topics = [b'bling/#'])
 
-                        rx_task = asyncio.create_task(mqtt_rx_coro(neo = neo, 
-                                                                   rx_q = mqtt.mqtt_app_rx_q))
-                        ntp_task = asyncio.create_task(ntp_coro())
-
+                        # rx_task = asyncio.create_task(mqtt_rx_coro(neo = neo, 
+                                                                   # rx_q = mqtt.mqtt_app_rx_q))
+                        # ntp_task = asyncio.create_task(ntp_coro())
                         
-                        await WaitAny((
-                            wifi.is_closed,
-                            wifisocket.is_closed,
-                            mqtt.is_closed,
-                        )).wait()
+                        # await WaitAny((
+                            # wifi.is_closed,
+                            # wifisocket.is_closed,
+                            # mqtt.is_closed,
+                        # )).wait()
 
         except Exception as err:
             sys.print_exception(err)
@@ -192,6 +276,8 @@ async def start():
             led_pwr.value(0)
             if rx_task:
                 rx_task.cancel()
+            if ntp_task:
+                ntp_task.cancel()
             gc.collect()
             gc_task.cancel()
 
