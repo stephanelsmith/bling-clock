@@ -9,6 +9,7 @@ import deflate
 
 from asyncio import Event
 from primitives.events import WaitAny
+from primitives import Pushbutton
 
 import machine
 from machine import Pin
@@ -51,6 +52,10 @@ LED_HUE_PINK      = const(220)
 
 MQTT_ROOT = b'ki5tof'
 
+PIN_BUTTON_A = const(11)
+PIN_BUTTON_B = const(10)
+PIN_BUTTON_C = const(33)
+PIN_BUTTON_D = const(34)
 
 is_nighttime = False
 
@@ -291,10 +296,17 @@ async def repl_coro():
     except Exception as err:
         sys.print_exception(err)
 
+def test(p):
+    print(f'hello {p}')
 
 async def start():
     print(f'_MAC: {board._MAC}');
     print(f'MAC: {board.MAC}');
+    
+    for p in [PIN_BUTTON_A,PIN_BUTTON_B,PIN_BUTTON_C,PIN_BUTTON_D]:
+        pin = Pin(p, Pin.IN)
+        pb = Pushbutton(pin)
+        pb.press_func(test, (p,))
     
     try:
         led_pwr = Pin(_NEOPIXELS_PWR, Pin.OUT, value=1)
