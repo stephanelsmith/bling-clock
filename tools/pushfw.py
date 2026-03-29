@@ -28,9 +28,9 @@ async def publish_async_message():
                 print(fsz, OTA_BLOCK_SIZE, fsz/OTA_BLOCK_SIZE)
                 for page in rich.progress.track(range(num_pages)):
                     p = f.read(OTA_BLOCK_SIZE)
-                    b = bytearray(OTA_BLOCK_SIZE)
-                    b[:len(p)] = p
-                    z = zlib.compress(b)
+                    # b = bytearray(OTA_BLOCK_SIZE)
+                    # b[:len(p)] = p
+                    z = zlib.compress(p)
                     print('PAGE:{}/{} {}-{}'.format(page, num_pages, len(p), len(z)))
                     await client.publish(f'ki5tof/ota/{page}', payload=z, qos=1)
                     # await client.publish(f'ki5tof/ota/{page}', payload=b, qos=1)

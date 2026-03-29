@@ -25,7 +25,6 @@ from mqtt.core import MQTTCore
 from lib.ntptime import settime as ntp_settime
 from lib.mytime import lcl_timetuple
 
-from board import ADDR
 
 CALLEN_MODE = 0
 CELESTE_MODE = 1
@@ -164,7 +163,9 @@ async def mqtt_rx_coro(rx_q):
                     try:
                         with deflate.DeflateIO(io.BytesIO(r.payload), deflate.ZLIB) as d:
                             print('wr ota page:{}'.format(page))
-                            ota_part.writeblocks(page, d.read())
+                            b = bytearray(OTA_BLOCK_SIZE)
+                            d.readinto(b)
+                            ota_part.writeblocks(page, b)
                     except Exception as err:
                         sys.print_exception(err)
                 else:
@@ -292,6 +293,8 @@ async def repl_coro():
 
 
 async def start():
+    print(f'_MAC: {board._MAC}');
+    print(f'MAC: {board.MAC}');
     
     try:
         led_pwr = Pin(_NEOPIXELS_PWR, Pin.OUT, value=1)
@@ -312,7 +315,7 @@ async def start():
 
         while True:
             try:
-                async with Wifi(addr = b'{}'.format(ADDR),
+                async with Wifi(addr = b'{}'.format(board.ADDR),
                                 ) as wifi:
                     ntp_task = asyncio.create_task(ntp_coro())
                     mqtt_task = asyncio.create_task(mqtt_coro(wifi = wifi))
