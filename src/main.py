@@ -14,7 +14,6 @@ from primitives import Pushbutton
 import machine
 from machine import Pin
 from neopixel import NeoPixel
-from font import char_to_pixels
 
 import board
 
@@ -26,29 +25,30 @@ from mqtt.core import MQTTCore
 from lib.ntptime import settime as ntp_settime
 from lib.mytime import lcl_timetuple
 
+from clock import clock_coro
+
+from display import NEOPIXELS_LEN
+from display import NEOPIXELS_ROW
+from display import i_to_xy
+from display import hsv_to_rgb
 
 CALLEN_MODE = 0
 CELESTE_MODE = 1
-CLOCK_MODE = CALLEN_MODE
+if board.MAC == 'dc:54:75:d8:6f:48':
+    CLOCK_MODE = CELESTE_MODE
+elif board.MAC == 'dc:54:75:d8:70:38':
+    CLOCK_MODE = CALLEN_MODE
+else:
+    CLOCK_MODE = CALLEN_MODE
 
+# pins
 _NEOPIXELS_PWR = const(6)
 _NEOPIXELS_DAT = const(18)
-_NEOPIXELS_LEN = const(320)
-_NEOPIXELS_ROW = const(40)
-_NEOPIXELS_MAX_CHARS = const(5)
 
-# hue
-LED_HUE_RED       = const(0)
-LED_HUE_REDORA    = const(5)
-LED_HUE_ORANGE    = const(20)
-LED_HUE_YELLOW    = const(45)
-LED_HUE_GREEN     = const(85)
-LED_HUE_TEAL      = const(130)
-LED_HUE_LIGHTBLUE = const(160)
-LED_HUE_BLUE      = const(165)
-LED_HUE_DARKBLUE  = const(170)
-LED_HUE_PUPLE     = const(175)
-LED_HUE_PINK      = const(220)
+# 18
+# 1111:111111:111111
+# 1111
+#     111111
 
 MQTT_ROOT = b'ki5tof'
 
@@ -69,54 +69,6 @@ async def gc_coro():
     except Exception as err:
         sys.print_exception(err)
 
-@micropython.viper
-def hsv_to_rgb(h:int, s:int, v:int):
-    #adapted from c example
-    h %= 256
-    s %= 256
-    v %= 256
-    reg:int = h // 43 #region  255/6
-    rem:int = (h - (reg * 43)) * 6 #remainder
-    p:int = (v * (255 - s)) >> 8
-    q:int = (v * (255 - ((s * rem) >> 8))) >> 8
-    t:int = (v * (255 - ((s * (255 - rem)) >> 8))) >> 8
-    if reg == 0:
-        return (v, t, p)
-    if reg == 1:
-        return (q, v, p)
-    if reg == 2:
-        return (p, v, t)
-    if reg == 3:
-        return (p, q, v)
-    if reg == 4:
-        return (t, p, v)
-    if reg == 5:
-        return (v, p, q)
-
-# 0,0 top left
-@micropython.viper
-def xy_to_i(x:int, y:int) -> int:
-    return x+y*_NEOPIXELS_ROW
-@micropython.viper
-def i_to_xy(i:int):
-    return (i % _NEOPIXELS_ROW, i // _NEOPIXELS_ROW)
-
-
-def write_text(frmmsk, text:bytes, jright=True, hue=LED_HUE_LIGHTBLUE, val=5):
-    j = max(_NEOPIXELS_MAX_CHARS-len(text),0)
-    if jright:
-        text = b' '*j+text
-    else:
-        text = text + b' '*j
-    for i in range(_NEOPIXELS_LEN):
-        frmmsk[i] = 0
-    for i,c in enumerate(text[:_NEOPIXELS_MAX_CHARS]):
-        ps = char_to_pixels(c) # get character
-        for x,p in enumerate(ps): # for each column
-            for y in range(8): # for each row
-                v = val if p&(0x01<<y) else 0
-                # neo[xy_to_i(i*8+x, y)] = hsv_to_rgb(hue, 255, v)
-                frmmsk[xy_to_i(i*8+x, y)] = 1 if p&(0x01<<y) else 0
 
 
 async def mqtt_coro(wifi):
@@ -201,48 +153,6 @@ async def ntp_coro():
     except Exception as err:
         sys.print_exception(err)
 
-# draw the clock into the framebuf as a mask
-async def clock_coro(frmmsk):
-    global is_nighttime
-    prv_sec = None
-    try:
-        while True:
-            try:
-                await asyncio.sleep_ms(250)
-                yr, mth, day, hr, min, sec, msec, = lcl_timetuple()
-                is_nighttime = hr <= 8 or hr >= 19
-                if yr < 2026:
-                    if sec%2==0:
-                        write_text(frmmsk = frmmsk,
-                                   text = b'hello')
-                    else:
-                        if CLOCK_MODE == CALLEN_MODE:
-                            write_text(frmmsk  = frmmsk,
-                                    text = b'Calln')
-                        elif CLOCK_MODE == CELESTE_MODE:
-                            write_text(frmmsk  = frmmsk,
-                                    text = b'Celst')
-                    await asyncio.sleep_ms(1000)
-                    continue
-                # if prv_sec != sec:
-                    # print('CLK','|',lcl_timetuple())
-                    # prv_sec = sec
-                sep = ':' if sec%2==0 else ' '
-                time = '{:02}{}{:02}'.format(hr,sep,min)
-                hue = (min*60+sec)*360//(60*60)
-                val = 1 if (hr < 8 or hr > 19) else 5
-                write_text(frmmsk  = frmmsk,
-                           text    = time.encode(),
-                           )
-            except asyncio.CancelledError:
-                raise
-            except Exception as err:
-                sys.print_exception(err)
-    except asyncio.CancelledError:
-        raise
-    except Exception as err:
-        sys.print_exception(err)
-
 # colorize and write to neopixel
 async def display_coro(frmmsk, neo):
     global is_nighttime
@@ -254,13 +164,13 @@ async def display_coro(frmmsk, neo):
                 await asyncio.sleep_ms(3)
                 yr, mth, day, hr, min, sec, msec, = lcl_timetuple()
                 shift += speed
-                for i in range(_NEOPIXELS_LEN):
+                for i in range(NEOPIXELS_LEN):
                     x,y = i_to_xy(i)
                     if is_nighttime:
                         hue = LED_HUE_PUPLE
                         val = 1
                     elif CLOCK_MODE == CELESTE_MODE:
-                        hue = ((x-shift//20)*256)//_NEOPIXELS_ROW
+                        hue = ((x-shift//20)*256)//NEOPIXELS_ROW
                         val = 5
                     elif CLOCK_MODE == CALLEN_MODE:
                         hue = (min*60+sec)*360//(60*60)
@@ -311,10 +221,10 @@ async def start():
     try:
         led_pwr = Pin(_NEOPIXELS_PWR, Pin.OUT, value=1)
         gc_task = asyncio.create_task(gc_coro())
-        neo = NeoPixel(Pin(_NEOPIXELS_DAT), _NEOPIXELS_LEN)
-        framemask = bytearray(_NEOPIXELS_LEN)
+        neo = NeoPixel(Pin(_NEOPIXELS_DAT), NEOPIXELS_LEN)
+        framemask = bytearray(NEOPIXELS_LEN)
 
-        # for x in range(_NEOPIXELS_LEN):
+        # for x in range(NEOPIXELS_LEN):
             # neo[x] = hsv_to_rgb(LED_HUE_RED, 255, 5)
         # neo[0] = hsv_to_rgb(LED_HUE_BLUE, 255, 5)
         # neo[1] = hsv_to_rgb(LED_HUE_GREEN, 255, 5)
