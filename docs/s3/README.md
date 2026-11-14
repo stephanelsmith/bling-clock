@@ -1,4 +1,4 @@
-# Bling
+i# Bling
 
 TinyS3 is available through [UnexpectedMaker's store](https://unexpectedmaker.com/) directy, Mouser Digkey, Sparkfun and others. He's got tons of other great boards to check out to!
 
@@ -11,7 +11,7 @@ TinyS3 is available through [UnexpectedMaker's store](https://unexpectedmaker.co
 ```
 apt install cmake python3-libusb1
 ```
-### ESP-IDF v5.5.1
+### ESP-IDF v5.5.2
 #### Clone the Espressif ESP-IDF repo
 ```
 git clone --depth 1 --branch v5.5.2 https://github.com/espressif/esp-idf.git esp-idf-v5.5.2
