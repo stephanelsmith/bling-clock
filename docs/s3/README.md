@@ -47,14 +47,16 @@ make BOARD=BLING
 #### Flash the esp32 chip.
 Before flashing the ESP32S3 needs to be in the bootloader.  This is done by holding the ```boot``` button and clicking ```reset```.  You can find the right comm port with ```py -m serial.tools.list_ports```.  You may need to ```py -m pip install pyserial``` first.
 ```
-py -m esptool --chip esp32s3 --port COM6 --after watchdog-reset write-flash -z 0 .\micropython\ports\esp32\build-BLING\firmware.bin
+python -m esptool --chip esp32s3 --port COM6 --after watchdog-reset write-flash -z 0 .\micropython\ports\esp32\build-BLING\firmware.bin
+python -m esptool --chip esp32s3 --port /dev/ttyACM3 --after watchdog-reset write-flash -z 0 ~/dev/micropython/ports/esp32/build-BLING/firmware.bin
 ```
 
 
 ## :runner: Trying the TinyS3 Port
 Fire up a terminal and connect to the device (use ```py -m serial.tools.list_ports``` to find the COM port)
 ```
-py -m serial.tools.miniterm COM20
+python -m serial.tools.miniterm COM20
+python -m serial.tools.miniterm /dev/ttyACM3
 ```
 
 
