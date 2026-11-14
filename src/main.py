@@ -96,6 +96,7 @@ async def mqtt_rx_coro(rx_q):
     part.mark_app_valid_cancel_rollback()
     ota_part = esp32.Partition(esp32.Partition.RUNNING).get_next_update()
     OTA_BLOCK_SIZE = 4096
+    b = bytearray(OTA_BLOCK_SIZE)
     while True:
         try:
             r = await rx_q.get()
@@ -110,9 +111,10 @@ async def mqtt_rx_coro(rx_q):
                         # EXIT
                     page = int(tlvls[2].decode())
                     try:
-                        with deflate.DeflateIO(io.BytesIO(r.payload), deflate.ZLIB) as d:
+                        # wbits=12 caps the window at 4KB (a page is 4KB uncompressed); without
+                        # it the window size comes from the header, and zlib's default is 32KB
+                        with deflate.DeflateIO(io.BytesIO(r.payload), deflate.ZLIB, 12) as d:
                             print('wr ota page:{}'.format(page))
-                            b = bytearray(OTA_BLOCK_SIZE)
                             d.readinto(b)
                             ota_part.writeblocks(page, b)
                     except Exception as err:

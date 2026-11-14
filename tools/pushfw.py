@@ -30,7 +30,11 @@ async def publish_async_message():
                     p = f.read(OTA_BLOCK_SIZE)
                     # b = bytearray(OTA_BLOCK_SIZE)
                     # b[:len(p)] = p
-                    z = zlib.compress(p)
+                    # 4KB window (wbits=12): the zlib header carries the window size, and the
+                    # device allocates that much to decompress. zlib.compress() defaults to
+                    # 32KB, which fails on the device; a page is only 4KB, so 4KB is enough.
+                    c = zlib.compressobj(level=9, wbits=12)
+                    z = c.compress(p) + c.flush()
                     print('PAGE:{}/{} {}-{}'.format(page, num_pages, len(p), len(z)))
                     await client.publish(f'ki5tof/ota/{page}', payload=z, qos=1)
                     # await client.publish(f'ki5tof/ota/{page}', payload=b, qos=1)
