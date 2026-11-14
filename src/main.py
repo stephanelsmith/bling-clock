@@ -44,7 +44,7 @@ _NEOPIXELS_DAT = const(18)
 # 1111
 #     111111
 
-MQTT_ROOT = b'ki5tof'
+MQTT_ROOT = b'kx5x'
 
 PIN_BUTTON_A = const(11)
 PIN_BUTTON_B = const(10)
@@ -63,8 +63,22 @@ async def gc_coro():
 
 
 
+# Hardware watchdog: if the event loop stalls for this long, the board reboots itself.
+# Once started it can't be stopped, so while developing over USB (Ctrl-C into the REPL)
+# set to 0 to disable. Must be longer than the longest blocking call (TLS handshake, NTP).
+WDT_TIMEOUT_MS = 30000
+
+async def wdt_coro():
+    if not WDT_TIMEOUT_MS:
+        return
+    wdt = machine.WDT(timeout = WDT_TIMEOUT_MS)
+    while True:
+        wdt.feed()
+        await asyncio.sleep_ms(2000)
+
 async def mqtt_coro(wifi):
     rx_task = None
+    retry_s = 1
     while True:
         try:
             use_ssl = True
@@ -78,6 +92,7 @@ async def mqtt_coro(wifi):
                                     ) as mqtt:
                     await mqtt.subscribe(topics = [MQTT_ROOT+b'/#'])
                     rx_task = asyncio.create_task(mqtt_rx_coro(rx_q = mqtt.mqtt_app_rx_q))
+                    retry_s = 1 # connected, reset the backoff
                     await WaitAny((
                         wifi.is_closed,
                         wifisocket.is_closed,
@@ -90,6 +105,10 @@ async def mqtt_coro(wifi):
         finally:
             if rx_task:
                 rx_task.cancel()
+                rx_task = None
+        # connection ended or failed: back off (1s, 2s, 4s ... max 60s) before reconnecting
+        await asyncio.sleep(retry_s)
+        retry_s = min(retry_s*2, 60)
 
 async def mqtt_rx_coro(rx_q):
     part = esp32.Partition(esp32.Partition.RUNNING)
@@ -129,9 +148,21 @@ async def mqtt_rx_coro(rx_q):
 # update the systemt time
 async def ntp_coro():
     try:
+        retry_s = 5
         while True:
-            print('NTP | fetching time')
-            ntp_settime()
+            try:
+                print('NTP | fetching time')
+                ntp_settime()
+                retry_s = 5
+            except asyncio.CancelledError:
+                raise
+            except Exception as err:
+                # offline, or DNS not ready yet: back off and retry instead of giving up
+                print('NTP | failed, retry in {}s'.format(retry_s), repr(err))
+                await asyncio.sleep(retry_s)
+                # (can't use min() here, ntp_coro has a local named min below)
+                retry_s = retry_s*2 if retry_s < 150 else 300
+                continue
             for x in range(3600_000//5000):
                 try:
                     await asyncio.sleep_ms(5000)
@@ -214,7 +245,8 @@ async def start():
     try:
         led_pwr = Pin(_NEOPIXELS_PWR, Pin.OUT, value=1)
         gc_task = asyncio.create_task(gc_coro())
-        neo = NeoPixel(Pin(_NEOPIXELS_DAT), NEOPIXELS_LEN)
+        wdt_task = asyncio.create_task(wdt_coro())
+        neo =NeoPixel(Pin(_NEOPIXELS_DAT), NEOPIXELS_LEN)
         framemask = bytearray(NEOPIXELS_LEN)
 
         # for x in range(NEOPIXELS_LEN):
@@ -254,6 +286,7 @@ async def start():
         display_task.cancel()
         gc.collect()
         gc_task.cancel()
+        wdt_task.cancel()
 
 def main():
     try:

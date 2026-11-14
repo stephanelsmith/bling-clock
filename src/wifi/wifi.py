@@ -136,11 +136,12 @@ class WifiSocket(DebugMixin):
             except asyncio.CancelledError:
                 raise
             except OSError as e:
-                if e.args[0] == -202:
-                    tries -= 1
-                    if tries == 0:
-                        raise
-                    await asyncio.sleep(1)
+                # retry any OSError a few times, then give up. (Previously only -202 was
+                # handled; other errors looped forever with no await, freezing the event loop.)
+                tries -= 1
+                if tries <= 0:
+                    raise
+                await asyncio.sleep(1)
 
         self.sock = socket.socket()
         self.sock.setblocking(False)

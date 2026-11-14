@@ -89,8 +89,10 @@ class MQTTCore(DebugMixin):
         ## clear qosacks except publishes
         self.qosacks_table[:] = _.filter(self.qosacks_table, lambda qosack: qosack.type == mqtt_defs.PUBLISH)
         
+        self.last_rx_ms = time.ticks_ms()
         self.tasks.append(asyncio.create_task(self.rx_coro()))
         self.tasks.append(asyncio.create_task(self.qosacks_coro()))
+        self.tasks.append(asyncio.create_task(self.watchdog_coro()))
 
         self.packet_id_incr = time.ticks_cpu()%65536
 
@@ -223,7 +225,28 @@ class MQTTCore(DebugMixin):
         finally:
             self.is_closed.set()
 
+    # Detect a silently dead connection (e.g. internet out while wifi stays up). The pinger
+    # sends a pingreq every pinger_ms and the broker answers each one, so if nothing at all
+    # has been received for WATCHDOG_MS we assume the connection is gone and close, which
+    # makes mqtt_coro tear down and reconnect.
+    WATCHDOG_MS = 15000
+    async def watchdog_coro(self):
+        try:
+            while True:
+                await asyncio.sleep_ms(1000)
+                if self.got_connack.is_set() and \
+                        time.ticks_diff(time.ticks_ms(), self.last_rx_ms) > self.WATCHDOG_MS:
+                    print('MQTT watchdog: no rx for {}ms, closing'.format(self.WATCHDOG_MS))
+                    break
+        except asyncio.CancelledError:
+            raise
+        except Exception as err:
+            sys.print_exception(err)
+        finally:
+            self.is_closed.set()
+
     async def process_pkt(self, pkt):
+        self.last_rx_ms = time.ticks_ms() # any packet from the broker counts as alive
         try:
             # self.debug('process_pkt', len(pkt), bytes(pkt))
             try:

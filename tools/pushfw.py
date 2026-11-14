@@ -36,11 +36,11 @@ async def publish_async_message():
                     c = zlib.compressobj(level=9, wbits=12)
                     z = c.compress(p) + c.flush()
                     print('PAGE:{}/{} {}-{}'.format(page, num_pages, len(p), len(z)))
-                    await client.publish(f'ki5tof/ota/{page}', payload=z, qos=1)
-                    # await client.publish(f'ki5tof/ota/{page}', payload=b, qos=1)
+                    await client.publish(f'kx5x/ota/{page}', payload=z, qos=1)
+                    # await client.publish(f'kx5x/ota/{page}', payload=b, qos=1)
                     await asyncio.sleep(0.75)
             await asyncio.sleep(1)
-            await client.publish(f'ki5tof/ota/done', payload=b'\x00', qos=1)
+            await client.publish(f'kx5x/ota/done', payload=b'\x00', qos=1)
 
     except MqttError as error:
         print(f"An MQTT error occurred: {error}")

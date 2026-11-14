@@ -17,7 +17,7 @@ async def publish_async_message():
                           port=8883,
                           tls_context=ssl.create_default_context(),
                           ) as client:
-            topic = "ki5tof/test"
+            topic = "kx5x/test"
             p = bytes(range(10))
             z = zlib.compress(p)
             print(z)
