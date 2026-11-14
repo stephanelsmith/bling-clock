@@ -6,7 +6,7 @@ import ssl
 import zlib
 import rich.progress
 
-FW_PATH = '/home/ssmith/micropython/ports/esp32/build-BLING/micropython.bin' # the ota parition
+FW_PATH = '/home/ssmith/dev/micropython/ports/esp32/build-BLING/micropython.bin' # the ota parition
 OTA_BLOCK_SIZE = 4096
 
 def int_div_ceil(total_size, chunk_size):

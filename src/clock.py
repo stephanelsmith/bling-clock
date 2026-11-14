@@ -2,9 +2,13 @@
 import sys
 import asyncio
 
+import board
 from display import write_text
 
 from lib.mytime import lcl_timetuple
+
+# updated by clock_coro, read by main.display_coro (as clock.is_nighttime)
+is_nighttime = False
 
 # draw the clock into the framebuf as a mask
 async def clock_coro(frmmsk):
@@ -20,10 +24,10 @@ async def clock_coro(frmmsk):
                         write_text(frmmsk = frmmsk,
                                    text = b'hello')
                     else:
-                        if CLOCK_MODE == CALLEN_MODE:
+                        if board.CLOCK_MODE == board.CALLEN_MODE:
                             write_text(frmmsk  = frmmsk,
                                     text = b'Calln')
-                        elif CLOCK_MODE == CELESTE_MODE:
+                        elif board.CLOCK_MODE == board.CELESTE_MODE:
                             write_text(frmmsk  = frmmsk,
                                     text = b'Celst')
                     await asyncio.sleep_ms(1000)

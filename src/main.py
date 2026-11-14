@@ -25,21 +25,15 @@ from mqtt.core import MQTTCore
 from lib.ntptime import settime as ntp_settime
 from lib.mytime import lcl_timetuple
 
+import clock
 from clock import clock_coro
 
+from display import LED_HUE_PUPLE
 from display import NEOPIXELS_LEN
 from display import NEOPIXELS_ROW
 from display import i_to_xy
 from display import hsv_to_rgb
 
-CALLEN_MODE = 0
-CELESTE_MODE = 1
-if board.MAC == 'dc:54:75:d8:6f:48':
-    CLOCK_MODE = CELESTE_MODE
-elif board.MAC == 'dc:54:75:d8:70:38':
-    CLOCK_MODE = CALLEN_MODE
-else:
-    CLOCK_MODE = CALLEN_MODE
 
 # pins
 _NEOPIXELS_PWR = const(6)
@@ -56,8 +50,6 @@ PIN_BUTTON_A = const(11)
 PIN_BUTTON_B = const(10)
 PIN_BUTTON_C = const(33)
 PIN_BUTTON_D = const(34)
-
-is_nighttime = False
 
 async def gc_coro():
     try:
@@ -155,7 +147,6 @@ async def ntp_coro():
 
 # colorize and write to neopixel
 async def display_coro(frmmsk, neo):
-    global is_nighttime
     shift = 0
     speed = 1
     try:
@@ -166,13 +157,13 @@ async def display_coro(frmmsk, neo):
                 shift += speed
                 for i in range(NEOPIXELS_LEN):
                     x,y = i_to_xy(i)
-                    if is_nighttime:
+                    if clock.is_nighttime:  # set by clock_coro
                         hue = LED_HUE_PUPLE
                         val = 1
-                    elif CLOCK_MODE == CELESTE_MODE:
+                    elif board.CLOCK_MODE == board.CELESTE_MODE:
                         hue = ((x-shift//20)*256)//NEOPIXELS_ROW
                         val = 5
-                    elif CLOCK_MODE == CALLEN_MODE:
+                    elif board.CLOCK_MODE == board.CALLEN_MODE:
                         hue = (min*60+sec)*360//(60*60)
                         val = 5
                     val = val if frmmsk[i] else 0

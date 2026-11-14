@@ -4,8 +4,12 @@ set(SDKCONFIG_DEFAULTS
     boards/sdkconfig.base
     boards/sdkconfig.ble
     boards/sdkconfig.240mhz
-    boards/sdkconfig.spiram_sx
+    #boards/sdkconfig.spiram_sx
     boards/BLING/sdkconfig.board
 )
 
 set(MICROPY_FROZEN_MANIFEST ${MICROPY_BOARD_DIR}/manifest.py)
+
+# C modules (board dir is symlinked into the port, so resolve the real path)
+get_filename_component(_BOARD_REAL "${MICROPY_BOARD_DIR}" REALPATH)
+include(${_BOARD_REAL}/../../c_modules/board.cmake)
