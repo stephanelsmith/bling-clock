@@ -14,8 +14,8 @@ apt install cmake python3-libusb1
 ### ESP-IDF v5.5.1
 #### Clone the Espressif ESP-IDF repo
 ```
-git clone --depth 1 --branch v5.5.1 https://github.com/espressif/esp-idf.git esp-idf-v5.5.1
-ln -sf esp-idf-v5.5.1 esp-idf
+git clone --depth 1 --branch v5.5.2 https://github.com/espressif/esp-idf.git esp-idf-v5.5.2
+ln -sf esp-idf-v5.5.2 esp-idf
 cd esp-idf
 git submodule update --init --recursive
 ./install.sh
