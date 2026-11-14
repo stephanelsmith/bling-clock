@@ -55,8 +55,7 @@ python -m esptool --chip esp32s3 --port /dev/ttyACM3 --after watchdog-reset writ
 ## :runner: Trying the TinyS3 Port
 Fire up a terminal and connect to the device (use ```py -m serial.tools.list_ports``` to find the COM port)
 ```
-python -m serial.tools.miniterm COM20
-python -m serial.tools.miniterm /dev/ttyACM3
+python -m serial.tools.miniterm
 ```
 
 
