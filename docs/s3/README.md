@@ -35,7 +35,7 @@ From here, the commands assume the current working directory is ```micropython/p
 
 #### Add the board file from the micro-wspr folder into the micropython build folder
 ```
-ln -sf ~/bling-clock/upy/boards/BLING boards/.
+ln -sf ~/dev/bling-clock/upy/boards/BLING boards/.
 ```
 
 #### Build micropython port with C modules
@@ -47,8 +47,7 @@ make BOARD=BLING
 #### Flash the esp32 chip.
 Before flashing the ESP32S3 needs to be in the bootloader.  This is done by holding the ```boot``` button and clicking ```reset```.  You can find the right comm port with ```py -m serial.tools.list_ports```.  You may need to ```py -m pip install pyserial``` first.
 ```
-python -m esptool --chip esp32s3 --port COM6 --after watchdog-reset write-flash -z 0 .\micropython\ports\esp32\build-BLING\firmware.bin
-python -m esptool --chip esp32s3 --port /dev/ttyACM3 --after watchdog-reset write-flash -z 0 ~/dev/micropython/ports/esp32/build-BLING/firmware.bin
+python -m esptool --chip esp32s3 --port /dev/ttyACM3 --after watchdog_reset write_flash -z 0 ~/dev/micropython/ports/esp32/build-BLING/firmware.bin
 ```
 
 
