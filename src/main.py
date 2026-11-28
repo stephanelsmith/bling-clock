@@ -2,6 +2,7 @@
 import asyncio
 import sys
 import gc
+import time
 from micropython import const
 import esp32
 import io
@@ -32,7 +33,9 @@ from display import LED_HUE_PUPLE
 from display import NEOPIXELS_LEN
 from display import NEOPIXELS_ROW
 from display import i_to_xy
-from display import hsv_to_rgb
+from display import make_palette
+from display import render
+from display import render_solid
 
 
 # pins
@@ -178,29 +181,30 @@ async def ntp_coro():
     except Exception as err:
         sys.print_exception(err)
 
+_FRAME_MS = const(8)    # neo.write() blocks ~10ms for 320 pixels, don't go faster
+_HUE_MS   = const(10)   # ms per hue step (256 steps/cycle -> ~2.5s per cycle, was shift//20)
+
 # colorize and write to neopixel
+# colors come from precomputed palettes and render() fills the neopixel buffer without allocating
 async def display_coro(frmmsk, neo):
-    shift = 0
-    speed = 1
+    pal_day   = make_palette(val=5)
+    pal_night = make_palette(val=1)
+    acc = 0
+    last = time.ticks_ms()
     try:
         while True:
             try:
-                await asyncio.sleep_ms(3)
-                yr, mth, day, hr, min, sec, msec, = lcl_timetuple()
-                shift += speed
-                for i in range(NEOPIXELS_LEN):
-                    x,y = i_to_xy(i)
-                    if clock.is_nighttime:  # set by clock_coro
-                        hue = LED_HUE_PUPLE
-                        val = 1
-                    elif board.CLOCK_MODE == board.CELESTE_MODE:
-                        hue = ((x-shift//20)*256)//NEOPIXELS_ROW
-                        val = 5
-                    elif board.CLOCK_MODE == board.CALLEN_MODE:
-                        hue = (min*60+sec)*360//(60*60)
-                        val = 5
-                    val = val if frmmsk[i] else 0
-                    neo[i] = hsv_to_rgb(hue, 255, val)
+                await asyncio.sleep_ms(_FRAME_MS)
+                now = time.ticks_ms()
+                acc = (acc + time.ticks_diff(now, last)) % (256*_HUE_MS)
+                last = now
+                if clock.is_nighttime:  # set by clock_coro
+                    render_solid(neo.buf, frmmsk, pal_night, LED_HUE_PUPLE)
+                elif board.CLOCK_MODE == board.CELESTE_MODE:
+                    render(neo.buf, frmmsk, pal_day, acc//_HUE_MS)
+                elif board.CLOCK_MODE == board.CALLEN_MODE:
+                    yr, mth, day, hr, min, sec, msec, = lcl_timetuple()
+                    render_solid(neo.buf, frmmsk, pal_day, (min*60+sec)*360//(60*60))
                 neo.write()
             except asyncio.CancelledError:
                 raise

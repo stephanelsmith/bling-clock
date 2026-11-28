@@ -26,7 +26,7 @@ MAC = binascii.hexlify(_MAC,':').decode()
 
 if MAC == 'dc:54:75:d8:6f:48':
     CLOCK_MODE = CELESTE_MODE
-elif MAC == 'dc:54:75:d8:70:38':
+elif MAC == 'dc:54:75:d8:6f:58':
     CLOCK_MODE = CALLEN_MODE
 else:
     CLOCK_MODE = CALLEN_MODE

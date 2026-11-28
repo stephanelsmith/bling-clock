@@ -1,4 +1,4 @@
-i# Bling
+# Bling
 
 TinyS3 is available through [UnexpectedMaker's store](https://unexpectedmaker.com/) directy, Mouser Digkey, Sparkfun and others. He's got tons of other great boards to check out to!
 
@@ -47,8 +47,7 @@ make BOARD=BLING
 #### Flash the esp32 chip.
 Before flashing the ESP32S3 needs to be in the bootloader.  This is done by holding the ```boot``` button and clicking ```reset```.  You can find the right comm port with ```py -m serial.tools.list_ports```.  You may need to ```py -m pip install pyserial``` first.
 ```
-python -m esptool --chip esp32s3 --port COM6 --after watchdog-reset write-flash -z 0 .\micropython\ports\esp32\build-BLING\firmware.bin
-python -m esptool --chip esp32s3 --port /dev/ttyACM3 --after watchdog-reset write-flash -z 0 ~/dev/micropython/ports/esp32/build-BLING/firmware.bin
+python -m esptool --chip esp32s3 --port /dev/ttyACM3 --after watchdog_reset write_flash -z 0 ~/dev/micropython/ports/esp32/build-BLING/firmware.bin
 ```
 
 
